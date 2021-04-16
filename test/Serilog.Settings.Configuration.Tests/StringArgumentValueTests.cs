@@ -100,6 +100,50 @@ namespace Serilog.Settings.Configuration.Tests
         }
 
         [Theory]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::DelegateProperty, Serilog.Settings.Configuration.Tests", typeof(NamedStringDelegate))]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::FunctionProperty, Serilog.Settings.Configuration.Tests", typeof(Func<string>))]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::DelegateField, Serilog.Settings.Configuration.Tests", typeof(NamedStringDelegate))]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::FunctionField, Serilog.Settings.Configuration.Tests", typeof(Func<string>))]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticStringFunction, Serilog.Settings.Configuration.Tests", typeof(NamedStringDelegate))]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticStringFunction, Serilog.Settings.Configuration.Tests", typeof(Func<string>))]
+        public void StaticMembersAccessorsCanBeUsedForDelegateTypes(string input, Type targetType)
+        {
+            var stringArgumentValue = new StringArgumentValue($"{input}");
+
+            var actual = stringArgumentValue.ConvertTo(targetType, new ResolutionContext());
+
+            Assert.IsAssignableFrom(targetType, actual);
+        }
+
+        [Theory]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticAction, Serilog.Settings.Configuration.Tests", typeof(Action))]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticAction, Serilog.Settings.Configuration.Tests", typeof(Action<string>))]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticStringFunction, Serilog.Settings.Configuration.Tests", typeof(NamedStringDelegate))]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticBoolFunction, Serilog.Settings.Configuration.Tests", typeof(Func<bool>))]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticStringFunction, Serilog.Settings.Configuration.Tests", typeof(Func<string>))]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticStringFunction, Serilog.Settings.Configuration.Tests", typeof(Func<string, string>))]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticStringFunction, Serilog.Settings.Configuration.Tests", typeof(Func<string, string, string>))]
+        public void StaticFunctionsOverloadResolution(string input, Type targetType)
+        {
+            var stringArgumentValue = new StringArgumentValue($"{input}");
+
+            var actual = stringArgumentValue.ConvertTo(targetType, new ResolutionContext());
+
+            Assert.IsAssignableFrom(targetType, actual);
+        }
+
+        [Theory]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticBoolFunction, Serilog.Settings.Configuration.Tests", typeof(Func<string>))]
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticBoolFunction, Serilog.Settings.Configuration.Tests", typeof(NamedStringDelegate))]
+        public void StaticAccessorOnDelegateTypeMismatchThrowsArgumentException(string input, Type targetType)
+        {
+            var stringArgumentValue = new StringArgumentValue($"{input}");
+            Assert.Throws<ArgumentException>(() =>
+                stringArgumentValue.ConvertTo(targetType, new ResolutionContext())
+            );
+        }
+
+        [Theory]
         // unknown type
         [InlineData("Namespace.ThisIsNotAKnownType::InterfaceProperty, Serilog.Settings.Configuration.Tests", typeof(IAmAnInterface))]
         // good type name, but wrong namespace
@@ -125,6 +169,20 @@ namespace Serilog.Settings.Configuration.Tests
         [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::InstanceInterfaceProperty, Serilog.Settings.Configuration.Tests", typeof(IAmAnInterface))]
         // public field exists but it's not static
         [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::InstanceInterfaceField, Serilog.Settings.Configuration.Tests", typeof(IAmAnInterface))]
+        // static function property exists but it's private
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::PrivateFunctionProperty, Serilog.Settings.Configuration.Tests", typeof(Func<string>))]
+        // static function field exists but it's private
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::PrivateFunctionField, Serilog.Settings.Configuration.Tests", typeof(Func<string>))]
+        // static method exists but it's private
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::PrivateFunction, Serilog.Settings.Configuration.Tests", typeof(Func<string>))]
+        // public method exists but it's not static
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::InstanceFunction, Serilog.Settings.Configuration.Tests", typeof(Func<string>))]
+        // public static method exists, but overload resolution fails
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticStringFunction, Serilog.Settings.Configuration.Tests", typeof(Func<string, string, bool>))]
+        // public static method exists, but overload resolution fails
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticStringFunction, Serilog.Settings.Configuration.Tests", typeof(Action<bool>))]
+        // public static method exists, but overload resolution fails
+        [InlineData("Serilog.Settings.Configuration.Tests.Support.ClassWithStaticAccessors::StaticAction, Serilog.Settings.Configuration.Tests", typeof(Func<string>))]
         public void StaticAccessorWithInvalidMemberThrowsInvalidOperationException(string input, Type targetType)
         {
             var stringArgumentValue = new StringArgumentValue($"{input}");

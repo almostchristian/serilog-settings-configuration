@@ -63,13 +63,43 @@ namespace Serilog.Settings.Configuration
             if (convertor != null)
                 return convertor(argumentValue);
 
-            if ((toTypeInfo.IsInterface || toTypeInfo.IsAbstract) && !string.IsNullOrWhiteSpace(argumentValue))
+            if ((toTypeInfo.IsInterface || toTypeInfo.IsAbstract || typeof(Delegate).IsAssignableFrom(toTypeInfo)) && !string.IsNullOrWhiteSpace(argumentValue))
             {
                 //check if value looks like a static property or field directive
                 // like "Namespace.TypeName::StaticProperty, AssemblyName"
                 if (TryParseStaticMemberAccessor(argumentValue, out var accessorTypeName, out var memberName))
                 {
                     var accessorType = Type.GetType(accessorTypeName, throwOnError: true);
+
+                    // if target type is a delegate, look for a public static non-generic method in the accessor type
+                    if (typeof(Delegate).IsAssignableFrom(toTypeInfo))
+                    {
+                        var methodCandidates = accessorType.GetTypeInfo().DeclaredMethods
+                            .Where(x => x.Name == memberName)
+                            .Where(x => x.IsPublic)
+                            .Where(x => !x.IsGenericMethod)
+                            .Where(x => x.IsStatic)
+                            .ToList();
+
+                        // if more than 1 candidates, get target type signature and perform overload resolution on candidate methods
+                        if (methodCandidates.Count > 1)
+                        {
+                            var delegateSig = toType.GetMethod("Invoke");
+                            var delegateParameters = delegateSig.GetParameters().Select(x => x.ParameterType);
+                            methodCandidates = methodCandidates
+                                .Where(x => x.ReturnType == delegateSig.ReturnType)
+                                .Where(x => x.GetParameters().Select(p => p.ParameterType).SequenceEqual(delegateParameters))
+                                .ToList();
+                        }
+
+                        var method = methodCandidates.SingleOrDefault();
+
+                        if (method != null)
+                        {
+                            return method.CreateDelegate(toType);
+                        }
+                    }
+
                     // is there a public static property with that name ?
                     var publicStaticPropertyInfo = accessorType.GetTypeInfo().DeclaredProperties
                         .Where(x => x.Name == memberName)
